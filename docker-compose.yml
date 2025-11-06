@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # PostgreSQL数据库
+  postgres:
+    image: postgres:16-alpine
+    container_name: ai-detector-db
+    restart: always
+    environment:
+      POSTGRES_USER: aidetector
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-aidetector_password_2024}
+      POSTGRES_DB: ai_detector
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aidetector"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 后端API服务
+  backend:
+    build:
+      context: ./ai-detector-backend
+      dockerfile: Dockerfile
+    container_name: ai-detector-backend
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://aidetector:${DB_PASSWORD:-aidetector_password_2024}@postgres:5432/ai_detector?schema=public
+      JWT_SECRET: ${JWT_SECRET:-default-jwt-secret-change-in-production}
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+    command: sh -c "npx prisma migrate deploy && node dist/index.js"
+
+  # 前端服务
+  frontend:
+    build:
+      context: ./ai-detector-frontend
+      dockerfile: Dockerfile
+    container_name: ai-detector-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:3001/api
+
+volumes:
+  postgres_data:
+  backend_uploads:

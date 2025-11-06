@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  detections Detection[]
+}
+
+model Detection {
+  id          String   @id @default(uuid())
+  userId      String?
+  fileName    String
+  fileSize    Int
+  fileType    String
+  content     String   @db.Text
+  
+  // AI检测结果
+  aiScore     Float    // AI生成概率 (0-100)
+  perplexity  Float
+  burstiness  Float
+  
+  // 词汇多样性
+  ttr         Float    // Type-Token Ratio
+  mtld        Float?   // Measure of Textual Lexical Diversity
+  vocd        Float?   // Vocabulary Diversity
+  
+  // 句法复杂度
+  mlt         Float?   // Mean Length of T-Unit
+  dct         Float?   // Dependent Clauses per T-Unit
+  
+  // 可读性指标
+  fleschKincaid Float  // Flesch-Kincaid Grade Level
+  gunningFog    Float  // Gunning Fog Index
+  
+  // 词汇复杂度
+  lexicalSophistication Float?
+  
+  // 详细分析数据
+  details     Json?
+  
+  createdAt   DateTime @default(now())
+  
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([createdAt])
+}
